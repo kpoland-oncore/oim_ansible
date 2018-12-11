@@ -1,0 +1,52 @@
+---
+# This playbook installs all the prerequisites needed for OpsHub Integration Manager with a local MySQL database
+- hosts: localhost
+
+  roles:
+    # GNOME desktop is needed to run the graphical OIM installer
+    - gnome
+    # VNC server is needed to run the graphical OIM installer
+    - vnc
+    # We are using a MySQL database on the same server as OIM itself
+    - mysql
+    # Load DCSS root certificates so that https connections to GitLab will be trusted
+    - {role: 'certs', tags: 'certs'}
+    # TODO how to handle things that can only run after OpsHub is installed
+    #- postinstall
+
+  vars:
+
+    # Anyone who needs to run the OIM graphical installer should be added to this vnc_users section.
+    # This should just be the person(s) doing the install. Once OIM is installed, OIM users don't need VNC access to the server, they access OIM through a browser.
+    # Specify three values for each user who will run the graphical installer:
+    #  their linux userid
+    #  what display port to use (start at 2 and increment per user) - this is what port to tunnel and what display to connect to.  2 = port 5902 and a VNC connection to localhost::5902, 3 = port 5903, etc.
+    #  what to set their VNC password to, the VNC client will prompt for this when connecting
+    vnc_users:
+      - userid: kpoland
+        display: 2
+        vnc_password: dcssvnc
+      - userid: aramagiri
+        display: 3
+        vnc_password: dcssvnc
+      - userid: rowens
+        display: 4
+        vnc_password: dcssvnc
+      - userid: krondla
+        display: 5
+        vnc_password: dcssvnc
+
+    # Set passwords for MySQL userids
+    # TODO root_password handling not yet working on a clean install
+    mysql:
+      root_password: AlphaDog2018#
+      oim_mysql_password: OimAdmin2018#
+
+    # DNS name and internal IP address of the GitLab server that OIM will connect to
+    # This is necssary for some host file and SSL certificate trickery because
+    #   the network firewall only allows the oim server to connect to the gitlab server on the gitlab server's internal IP address
+    #   yet the gitlab server's DNS name maps to the gitlab server's external IP address (which is blocked)
+    gitlab:
+      dns_name: gitlabtest.dcss.ca.gov
+      short_name: gitlabtest
+      internal_IP_address: 100.95.22.79

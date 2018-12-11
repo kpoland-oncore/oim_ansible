@@ -1,0 +1,9 @@
+---
+# This playbook installs the Linux GNOME desktop which is needed to run the graphical OIM installer
+# Part of a series of playbooks to install pre-requisites for OpsHub Integration Manager (OIM) on a server
+#
+
+- name: "Install GNOME GUI"
+  yum:
+    name: '@Server with GUI'
+    state: installed

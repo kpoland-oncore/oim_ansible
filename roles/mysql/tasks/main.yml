@@ -1,0 +1,78 @@
+---
+# This playbook installs MySQL to be used as a database for OIM
+# Part of a series of playbooks to install pre-requisites for OpsHub Integration Manager (OIM) on a server
+#
+# Pre-requisites:
+
+- name: "Add the MySQL repo to Yum"
+  yum:
+    name=https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm
+    state=present
+
+- name: "Install MySQL 5.7 packages (instead of the latest 8.0)"
+# mysql-community-server is the db server, mysql-community-client is the mysql command line program, MySQL-python is needed by the ansible mysql_user task
+  yum:
+    name: mysql-community-server,mysql-community-client,MySQL-python
+    state: present
+    # OIM does not support MySQL v8 yet
+    disablerepo: mysql80-community
+    # it does support v5.7.x
+    enablerepo: mysql57-community
+
+- name: "Start MySQL service"
+  systemd:
+    name: mysqld
+    state: started
+    enabled: yes
+
+# This is debugging to make sure that MySQL 5.7 was installed
+# This can be removed if it is working as expected on a clean install
+- name: "List the version of the MySQL package installed"
+  yum: list=installed
+  register: yum_packages
+- debug: var=item
+  with_items: "{{yum_packages|json_query(jsonquery)}}"
+  vars:
+    jsonquery: "results[?name=='mysql-community-server'].version"
+
+- name: Set the root password 
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root password="{{ mysql.root_password }}"
+
+- name: Secure the root user for IPV6 localhost (::1)
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="::1"
+
+- name: Secure the root user for IPV4 localhost (127.0.0.1)
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="127.0.0.1"
+
+- name: Secure the root user for localhost domain
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="localhost"
+
+- name: Secure the root user for server_hostname domain
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="{{ ansible_fqdn }}"
+
+- name: Deletes anonymous server user
+  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user="" host_all=yes state=absent
+
+- name: Removes the test database
+  mysql_db: login_user=root login_password="{{ mysql.root_password }}" db=test state=absent
+
+- name: "Create MySQL userid for the app to use"
+  mysql_user:
+    login_user: root
+    login_password: "{{ mysql.root_password }}"
+    name: oim_mysql
+    password: "{{ mysql.oim_mysql_password }}"
+    priv: "*.*:ALL"
+    host: localhost
+    state: present
+
+- name: "Install the JDBC driver"
+  yum:
+    name: mysql-connector-java
+    state: present
+
+- name: "Make a symlink to the JDBC driver that the OIM installer (stupidly) expects"
+  file:
+    src: /usr/share/java/mysql-connector-java.jar
+    dest: /usr/share/java/mysql-connector-java-5.0.8-bin.jar
+    state: link

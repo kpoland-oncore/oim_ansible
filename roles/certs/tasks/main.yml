@@ -1,0 +1,36 @@
+---
+# This sets up the DCSS root certificate in various places
+# This allows git and OIM to trust servers with certs issued by DCSS
+# Part of a series of playbooks to install pre-requisites for OpsHub Integration Manager (OIM) on a server
+#
+
+# We are keeping a copy of the DCSS root certificate in the git repo in roles/certs/files
+# Copy it to the system
+- name: "Copy the DCSS root certificate to the location on the server used by openssl"
+  copy:
+    src: roles/certs/files/DCSS_root_certificate_base64.cer
+    dest: /etc/pki/tls/certs/
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Get the hash of that DCSS root certificate, it is needed for a symlink"
+  shell: openssl x509 -noout -hash -in /etc/pki/tls/certs/DCSS_root_certificate_base64.cer
+  register: certificate_hash
+
+- name: "Create a symlink based on the hash of the DCSS certificate to the certificate itself"
+  file:
+    src: /etc/pki/tls/certs/DCSS_root_certificate_base64.cer
+    dest: /etc/pki/tls/certs/{{ certificate_hash.stdout }}.0
+    state: link
+
+- name: "Modify /etc/hosts to find the gitlab server at its CalCloud internal IP address instead of the external IP a DNS lookup would find"
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^{{ gitlab.internal_IP_address }}'
+    line: '{{ gitlab.internal_IP_address }}    {{ gitlab.dns_name }}   {{ gitlab.short_name }}'
+
+- name: "Append the DCSS root certificate to the ca-bundle.crt file"
+  blockinfile:
+    dest: /etc/pki/tls/certs/ca-bundle.crt
+    block: "{{ lookup('file', 'roles/certs/files/DCSS_root_certificate_base64.cer') }}"

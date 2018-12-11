@@ -1,0 +1,10 @@
+---
+# handlers for vnc server
+
+# restart vncservers is called when the vnc service configuration file changes
+- name: restart vncservers
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: vncserver-{{ item.userid }}@:{{ item.display }}
+  loop: "{{ vnc_users }}"

@@ -1,0 +1,66 @@
+---
+# This playbook installs the VNC server which is needed to run the graphical OIM installer
+# Part of a series of playbooks to install pre-requisites for OpsHub Integration Manager (OIM) on a server
+#
+# Pre-requisites:
+#   a vnc_users list variable with subkeys for userid, port, and vnc_password must be defined in the main playbook
+
+- name: "Ensure oimadmin user exists"
+  user: name=oimadmin state=present groups=oimadmin,wheel,staff
+
+- name: "Install the VNC Server package"
+  yum: name=tigervnc-server state=installed
+
+- name: "Create a vnc service configuration file for each vnc_user listed in site.yml and copy to to /etc/systemd/system"
+  template:
+    src: roles/vnc/files/vncserver@.service.j2
+    dest: /etc/systemd/system/vncserver-{{ item.userid }}@.service
+    owner: root
+    group: root
+    mode: 0644
+  loop: "{{ vnc_users }}"
+  notify:
+  - restart vncservers
+
+- name: "Create the .vnc directory for each user"
+  file:
+    path: /home/{{ item.userid }}/.vnc
+    mode: 0755
+    state: directory
+    owner: "{{ item.userid }}"
+    group: "{{ item.userid }}"
+  loop: "{{ vnc_users }}"
+
+- name: "Set a default VNC password for each user"
+  shell: echo "{{ item.vnc_password }}" | vncpasswd -f > /home/{{ item.userid }}/.vnc/passwd
+  args:
+    # if the ~/.vnc/passwd file already exists this will cause it to not be overwritten
+    # this allows a user to set their own vnc password by running 'vncpasswd'
+    creates: /home/{{ item.userid }}/.vnc/passwd
+  loop: "{{ vnc_users }}"
+
+- name: "Set permissions on the VNC password file"
+  file:
+    path: /home/{{ item.userid }}/.vnc/passwd
+    mode: 0600
+    owner: "{{ item.userid }}"
+    group: "{{ item.userid }}"
+  loop: "{{ vnc_users }}"
+
+- name: "Start the VNC service for each user"
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: vncserver-{{ item.userid }}@:{{ item.display }}
+    enabled: yes
+  loop: "{{ vnc_users }}"
+
+#- name: "Show what VNC processes are running"
+#  shell: ps -ef | grep Xvnc | grep -v grep
+#  register: ps_output
+#- debug: var=ps_output.stdout_lines
+  
+#- name: "Show what ports are used by VNC"
+#  shell: netstat -an | grep :590 | grep LISTEN | grep -v tcp6
+#  register: netstat_output
+#- debug: var=netstat_output.stdout_lines
