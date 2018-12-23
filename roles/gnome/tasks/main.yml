@@ -5,5 +5,5 @@
 
 - name: "Install GNOME GUI"
   yum:
-    name: '@Server with GUI'
+    name: '@^Server with GUI'
     state: installed
