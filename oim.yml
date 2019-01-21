@@ -8,11 +8,9 @@
     # VNC server is needed to run the graphical OIM installer
     - vnc
     # We are using a MySQL database on the same server as OIM itself
-    - mysql
+#    - mysql
     # Load DCSS root certificates so that https connections to GitLab will be trusted
-    - {role: 'certs', tags: 'certs'}
-    # TODO how to handle things that can only run after OpsHub is installed
-    #- postinstall
+#    - {role: 'certs', tags: 'certs'}
 
   vars:
 
@@ -23,17 +21,8 @@
     #  what display port to use (start at 2 and increment per user) - this is what port to tunnel and what display to connect to.  2 = port 5902 and a VNC connection to localhost::5902, 3 = port 5903, etc.
     #  what to set their VNC password to, the VNC client will prompt for this when connecting
     vnc_users:
-      - userid: kpoland
+      - userid: ec2-user
         display: 2
-        vnc_password: dcssvnc
-      - userid: aramagiri
-        display: 3
-        vnc_password: dcssvnc
-      - userid: rowens
-        display: 4
-        vnc_password: dcssvnc
-      - userid: krondla
-        display: 5
         vnc_password: dcssvnc
 
     # Set passwords for MySQL userids

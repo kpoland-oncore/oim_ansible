@@ -5,8 +5,16 @@
 # Pre-requisites:
 #   a vnc_users list variable with subkeys for userid, port, and vnc_password must be defined in the main playbook
 
+- name: "Ensure oimadmin group exists"
+  group:
+    name: oimadmin
+    state: present
+
 - name: "Ensure oimadmin user exists"
-  user: name=oimadmin state=present groups=oimadmin,wheel,staff
+  user:
+    name: oimadmin
+    state: present
+    groups: oimadmin,wheel
 
 - name: "Install the VNC Server package"
   yum: name=tigervnc-server state=installed
