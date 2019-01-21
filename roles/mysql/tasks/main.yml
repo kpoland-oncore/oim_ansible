@@ -35,31 +35,35 @@
   vars:
     jsonquery: "results[?name=='mysql-community-server'].version"
 
-- name: Set the root password 
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root password="{{ mysql.root_password }}"
+# Get the temporary root password from the mysqld.log file. The mysql install generates a temp root password and writes it to that log file.
+- name: Get the temporary root password
+  shell: "echo `grep 'temporary.*root@localhost' /var/log/mysqld.log | tail -1 | sed 's/.*root@localhost: //'`"
+  register: mysql_initial_root_password
 
-- name: Secure the root user for IPV6 localhost (::1)
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="::1"
+# Create a .my.cnf file for root so that the remaining ansible mysql tasks use the username/password in it to connect to the database
+- name: create .my.cnf file for root login into mysql
+  template:
+    src: "my.cnf.j2"
+    dest: "/root/.my.cnf"
+    owner: root
+    group: root
+    mode: 0600
+    force: no
 
-- name: Secure the root user for IPV4 localhost (127.0.0.1)
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="127.0.0.1"
-
-- name: Secure the root user for localhost domain
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="localhost"
-
-- name: Secure the root user for server_hostname domain
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user=root host="{{ ansible_fqdn }}"
-
-- name: Deletes anonymous server user
-  mysql_user: login_user=root login_password="{{ mysql.root_password }}" user="" host_all=yes state=absent
+- name: Disallow root remote login
+  command: 'mysql -NBe "{{ item }}"'
+  with_items:
+    - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+  changed_when: false
 
 - name: Removes the test database
-  mysql_db: login_user=root login_password="{{ mysql.root_password }}" db=test state=absent
+  mysql_db: db=test state=absent
+
+- name: Deletes anonymous server user
+  mysql_user: user="" host_all=yes state=absent
 
 - name: "Create MySQL userid for the app to use"
   mysql_user:
-    login_user: root
-    login_password: "{{ mysql.root_password }}"
     name: oim_mysql
     password: "{{ mysql.oim_mysql_password }}"
     priv: "*.*:ALL"
@@ -76,3 +80,10 @@
     src: /usr/share/java/mysql-connector-java.jar
     dest: /usr/share/java/mysql-connector-java-5.0.8-bin.jar
     state: link
+
+# Set the root password to what we want it to be.
+# We can't use the mysql_user ansible module because this temporary root password is considered an expired password and the ansible module does not support logging in with expired passwords. Thus we need to use a shell command with the mysql command to change the password.
+#- name: Set the root password to our configured value 
+#  shell: 'mysql -e "SET PASSWORD = PASSWORD(''{{ mysql.root_password }}'');" --connect-expired-password -uroot -p{{ mysql_root_password_temp.stdout }}'
+#
+

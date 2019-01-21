@@ -4,14 +4,20 @@
 
   roles:
     # GNOME desktop is needed to run the graphical OIM installer
-    - gnome
+    - role: gnome
+      tags: gnome
     # VNC server is needed to run the graphical OIM installer
-    - vnc
+    - role: vnc
+      tags: vnc
     # We are using a MySQL database on the same server as OIM itself
-#    - mysql
+    - role: mysql
+      tags: mysql
     # Load DCSS root certificates so that https connections to GitLab will be trusted
-#    - {role: 'certs', tags: 'certs'}
-
+    - role: certs
+      tags: certs
+    # OIM setup
+    - role: oim
+      tags: oim
   vars:
 
     # Anyone who needs to run the OIM graphical installer should be added to this vnc_users section.
@@ -24,11 +30,19 @@
       - userid: ec2-user
         display: 2
         vnc_password: dcssvnc
+<<<<<<< HEAD
+=======
+      - userid: aramagiri
+        display: 3
+        vnc_password: dcssvnc
+      - userid: krondla
+        display: 5
+        vnc_password: dcssvnc
+>>>>>>> 8afd6fae9e718a4935d551828d87f67edb5278ac
 
     # Set passwords for MySQL userids
     # TODO root_password handling not yet working on a clean install
     mysql:
-      root_password: AlphaDog2018#
       oim_mysql_password: OimAdmin2018#
 
     # DNS name and internal IP address of the GitLab server that OIM will connect to
@@ -36,6 +50,6 @@
     #   the network firewall only allows the oim server to connect to the gitlab server on the gitlab server's internal IP address
     #   yet the gitlab server's DNS name maps to the gitlab server's external IP address (which is blocked)
     gitlab:
-      dns_name: gitlabtest.dcss.ca.gov
-      short_name: gitlabtest
-      internal_IP_address: 100.95.22.79
+      dns_name: gitlab.dcss.ca.gov
+      short_name: gitlab
+      internal_IP_address: 100.95.22.13
